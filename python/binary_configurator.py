@@ -18,14 +18,10 @@ from binary_flash import UploadMethod
 from external import jmespath
 
 class RegulatoryDomain(Enum):
-    us_433 = 'us_433'
-    us_433_wide = 'us_433_wide'
-    eu_433 = 'eu_433'
-    au_433 = 'au_433'
-    in_866 = 'in_866'
-    eu_868 = 'eu_868'
-    au_915 = 'au_915'
-    fcc_915 = 'fcc_915'
+    P390_40 = 'P390_40'
+    P390_20 = 'P390_20'
+    P435_40 = 'P435_40'
+    P435_40 = 'P435_40'
 
     def __str__(self):
         return self.value
@@ -50,22 +46,14 @@ def FREQ_HZ_TO_REG_VAL_SX1280(freq):
     return int(freq/(52000000.0/pow(2,18)))
 
 def domain_number(domain):
-    if domain == RegulatoryDomain.au_915:
+    if domain == RegulatoryDomain.P390_40:
         return 0
-    elif domain == RegulatoryDomain.fcc_915:
+    elif domain == RegulatoryDomain.P390_20:
         return 1
-    elif domain == RegulatoryDomain.eu_868:
+    elif domain == RegulatoryDomain.P435_40:
         return 2
-    elif domain == RegulatoryDomain.in_866:
+    elif domain == RegulatoryDomain.P435_40:
         return 3
-    elif domain == RegulatoryDomain.au_433:
-        return 4
-    elif domain == RegulatoryDomain.eu_433:
-        return 5
-    elif domain == RegulatoryDomain.us_433:
-        return 6
-    elif domain == RegulatoryDomain.us_433_wide:
-        return 7
 
 def patch_unified(args, options):
     json_flags = {}
