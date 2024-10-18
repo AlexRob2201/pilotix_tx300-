@@ -35,13 +35,13 @@ __attribute__ ((used)) static firmware_options_t flashedOptions = {
 #if defined(Regulatory_Domain_ISM_2400)
     .domain = 0,
 #else
-    #if defined(Regulatory_Domain_435_40)
+    #if defined(Regulatory_Domain_P435_40)
     .domain = 0,
-    #elif defined(Regulatory_Domain_435_20)
+    #elif defined(Regulatory_Domain_P435_20)
     .domain = 1,
-    #elif defined(Regulatory_Domain_390_40)
+    #elif defined(Regulatory_Domain_P390_40)
     .domain = 2,
-    #elif defined(Regulatory_Domain_390_20)
+    #elif defined(Regulatory_Domain_P390_20)
     .domain = 3,
     #else
     #error No regulatory domain defined, please define one in user_defines.txt

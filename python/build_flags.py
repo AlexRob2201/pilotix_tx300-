@@ -151,13 +151,13 @@ if '-DRADIO_SX127X=1' in build_flags or '-DRADIO_LR1121=1' in build_flags:
     if not fnmatch.filter(build_flags, '*-DRegulatory_Domain*'):
         print_error('Please define a Regulatory_Domain in user_defines.txt')
 
-    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_435_40'):
+    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_P435_40'):
         json_flags['domain'] = 0
-    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_435_20'):
+    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_P435_20'):
         json_flags['domain'] = 1
-    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_390_40'):
+    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_P390_40'):
         json_flags['domain'] = 2
-    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_390_20'):
+    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_P390_20'):
         json_flags['domain'] = 3
 else:
     json_flags['domain'] = 0
