@@ -21,7 +21,7 @@ class RegulatoryDomain(Enum):
     P390_40 = 'P390_40'
     P390_20 = 'P390_20'
     P435_40 = 'P435_40'
-    P435_40 = 'P435_40'
+    P435_20 = 'P435_20'
 
     def __str__(self):
         return self.value
@@ -52,7 +52,7 @@ def domain_number(domain):
         return 1
     elif domain == RegulatoryDomain.P435_40:
         return 2
-    elif domain == RegulatoryDomain.P435_40:
+    elif domain == RegulatoryDomain.P435_20:
         return 3
 
 def patch_unified(args, options):
