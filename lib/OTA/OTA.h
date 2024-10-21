@@ -66,8 +66,7 @@ typedef struct {
         } PACKED dbg_linkstats;
         /** PACKET_TYPE_MSP **/
         struct {
-            uint8_t packageIndex:7,
-                    tlmFlag:1;
+            uint8_t packageIndex;
             uint8_t payload[ELRS4_MSP_BYTES_PER_CALL];
         } msp_ul;
         /** PACKET_TYPE_SYNC **/
@@ -117,8 +116,7 @@ typedef struct {
         /** PACKET_TYPE_MSP **/
         struct {
             uint8_t packetType: 2,
-                    packageIndex: 5,
-                    tlmFlag: 1;
+                    packageIndex: 6;
             uint8_t payload[ELRS8_MSP_BYTES_PER_CALL];
         } msp_ul;
         /** PACKET_TYPE_SYNC **/

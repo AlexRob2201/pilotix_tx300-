@@ -7,7 +7,6 @@
 
 typedef enum {
     SENDER_IDLE = 0,
-    SEND_PENDING,
     SENDING,
     WAIT_UNTIL_NEXT_CONFIRM,
     RESYNC,
@@ -32,7 +31,7 @@ private:
     uint8_t currentOffset;
     uint8_t bytesLastPayload;
     uint8_t currentPackage;
-    bool telemetryConfirmExpectedValue;
+    bool waitUntilTelemetryConfirm;
     uint16_t waitCount;
     uint16_t maxWaitCount;
     uint8_t maxPackageIndex;

@@ -6,8 +6,6 @@ import struct
 import sys
 
 from external import jmespath
-from firmware import TXType
-
 
 def findFirmwareEnd(f):
     f.seek(0, 0)
@@ -34,7 +32,7 @@ def findFirmwareEnd(f):
         pos = pos + 32
     return pos
 
-def appendToFirmware(firmware_file, product_name, lua_name, defines, config, layout_file, rx_as_tx):
+def appendToFirmware(firmware_file, product_name, lua_name, defines, config, layout_file):
     product = (product_name.encode() + (b'\0' * 128))[0:128]
     device = (lua_name.encode() + (b'\0' * 16))[0:16]
     end = findFirmwareEnd(firmware_file)
@@ -49,15 +47,6 @@ def appendToFirmware(firmware_file, product_name, lua_name, defines, config, lay
                 hardware = json.load(h)
                 if 'overlay' in config:
                     hardware.update(config['overlay'])
-                if rx_as_tx is not None:
-                    if 'serial_rx' not in hardware or 'serial_tx' not in hardware:
-                        sys.stderr.write(f'Cannot select this target as RX-as-TX\n')
-                        exit(1)
-                    if rx_as_tx == TXType.external and hardware['serial_rx']:
-                        hardware['serial_rx'] = hardware['serial_tx']
-                    if 'led_red' not in hardware and 'led' in hardware:
-                        hardware['led_red'] = hardware['led']
-                        del hardware['led']
                 layout = (json.JSONEncoder().encode(hardware).encode() + (b'\0' * 2048))[0:2048]
                 firmware_file.write(layout)
         except EnvironmentError:
@@ -74,7 +63,7 @@ def appendToFirmware(firmware_file, product_name, lua_name, defines, config, lay
         firmware_file.write(config['prior_target_name'].upper().encode())
         firmware_file.write(b'\0')
 
-def doConfiguration(file, defines, config, moduletype, frequency, platform, device_name, rx_as_tx):
+def doConfiguration(file, defines, config, moduletype, frequency, platform, device_name):
     product_name = "Unified"
     lua_name = "Unified"
     layout = None
@@ -110,7 +99,7 @@ def doConfiguration(file, defines, config, moduletype, frequency, platform, devi
         layout = f"hardware/{dir}/{config['layout_file']}"
 
     lua_name = lua_name if device_name is None else device_name
-    appendToFirmware(file, product_name, lua_name, defines, config, layout, rx_as_tx)
+    appendToFirmware(file, product_name, lua_name, defines, config, layout)
 
 def appendConfiguration(source, target, env):
     target_name = env.get('PIOENV', '').upper()
@@ -132,15 +121,13 @@ def appendConfiguration(source, target, env):
         platform = 'esp32'
         if 'esp32-s3' in env.get('BOARD', ''):
             platform = 'esp32-s3'
-        elif 'esp32-c3' in env.get('BOARD', ''):
-            platform = 'esp32-c3'
     else:
         platform = 'esp8285'
 
     defines = json.JSONEncoder().encode(env['OPTIONS_JSON'])
 
     with open(str(target[0]), "r+b") as firmware_file:
-        doConfiguration(firmware_file, defines, config, moduletype, frequency, platform, device_name, None)
+        doConfiguration(firmware_file, defines, config, moduletype, frequency, platform, device_name)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Configure Unified Firmware")
@@ -166,4 +153,4 @@ if __name__ == '__main__':
         dir = 'TX' if moduletype == 'tx' else 'RX'
         layout = f"hardware/{dir}/{config['layout_file']}"
 
-    appendToFirmware(args.file, product_name, lua_name, args.options, config, layout, None)
+    appendToFirmware(args.file, product_name, lua_name, args.options, config, layout)

@@ -3,7 +3,6 @@
 #include "SerialHoTT_TLM.h"
 #include "FIFO.h"
 #include "telemetry.h"
-#include "common.h"
 
 #define NOT_FOUND 0xff          // no device found indicator
 
@@ -13,7 +12,7 @@
 #define HOTT_CMD_DELAY 1        // 1 ms delay between CMD byte 1 and 2
 #define HOTT_WAIT_TX_COMPLETE 2 // 2 ms wait for CMD bytes transmission complete
 
-#define DISCOVERY_TIMEOUT 30000 // 30s device discovery time
+#define DISCOVERY_TIMEOUT 40000 // 40s device discovery time
 
 #define VARIO_MIN_CRSFRATE 1000 // CRSF telemetry packets will be sent if
 #define GPS_MIN_CRSFRATE 5000   // min rate timers in [ms] have expired
@@ -22,6 +21,15 @@
                                 // to HoTT bus speed if only a HoTT Vario is connected and
                                 // values change every HoTT bus poll cycle.
 
+typedef struct crsf_sensor_gps_s
+{
+    int32_t latitude;     // degree / 10,000,000 big endian
+    int32_t longitude;    // degree / 10,000,000 big endian
+    uint16_t groundspeed; // km/h / 10 big endian
+    uint16_t heading;     // GPS heading, degree/100 big endian
+    uint16_t altitude;    // meters, +1000m big endian
+    uint8_t satellites;   // satellites
+} PACKED crsf_sensor_gps_t;
 
 extern Telemetry telemetry;
 
@@ -35,7 +43,7 @@ void SerialHoTT_TLM::setTXMode()
 #if defined(PLATFORM_ESP32)
     pinMode(halfDuplexPin, OUTPUT);                                 // set half duplex GPIO to OUTPUT
     digitalWrite(halfDuplexPin, HIGH);                              // set half duplex GPIO to high level
-    pinMatrixOutAttach(halfDuplexPin, UTXDoutIdx, false, false);    // attach GPIO as output of UART TX
+    pinMatrixOutAttach(halfDuplexPin, U0TXD_OUT_IDX, false, false); // attach GPIO as output of UART0 TX
 #endif
 }
 
@@ -43,7 +51,7 @@ void SerialHoTT_TLM::setRXMode()
 {
 #if defined(PLATFORM_ESP32)
     pinMode(halfDuplexPin, INPUT_PULLUP);                           // set half duplex GPIO to INPUT
-    pinMatrixInAttach(halfDuplexPin, URXDinIdx, false);             // attach half duplex GPIO as input to UART RX
+    pinMatrixInAttach(halfDuplexPin, U0RXD_IN_IDX, false);          // attach half duplex GPIO as input to UART0 RX
 #endif
 }
 
@@ -74,12 +82,6 @@ void SerialHoTT_TLM::processBytes(uint8_t *bytes, u_int16_t size)
 void SerialHoTT_TLM::sendQueuedData(uint32_t maxBytesToSend)
 {
     uint32_t now = millis();
-
-    if(connectionState != connected)
-    {
-        // suspend device discovery timer until receiver is connected
-        discoveryTimerStart = now;      
-    }
 
     // device discovery timer
     if (discoveryMode && (now - discoveryTimerStart >= DISCOVERY_TIMEOUT))
@@ -262,9 +264,9 @@ void SerialHoTT_TLM::sendCRSFgps(uint32_t now)
     crsfGPS.p.latitude = htobe32(getHoTTlatitude());
     crsfGPS.p.longitude = htobe32(getHoTTlongitude());
     crsfGPS.p.groundspeed = htobe16(getHoTTgroundspeed() * 10); // Hott 1 = 1 km/h, ELRS 1 = 0.1km/h
-    crsfGPS.p.gps_heading = htobe16(getHoTTheading() * 100);
+    crsfGPS.p.heading = htobe16(getHoTTheading() * 100);
     crsfGPS.p.altitude = htobe16(getHoTTMSLaltitude() + 1000); // HoTT 1 = 1m, CRSF: 0m = 1000
-    crsfGPS.p.satellites_in_use = getHoTTsatellites();
+    crsfGPS.p.satellites = getHoTTsatellites();
     CRSF::SetHeaderAndCrc((uint8_t *)&crsfGPS, CRSF_FRAMETYPE_GPS, CRSF_FRAME_SIZE(sizeof(crsf_sensor_gps_t)), CRSF_ADDRESS_CRSF_TRANSMITTER);
 
     // send packet only if min rate timer expired or values have changed

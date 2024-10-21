@@ -7,7 +7,6 @@
 #include "CRSFHandset.h"
 #include "config.h"
 #include "logging.h"
-#include "MAVLink.h"
 
 #define BACKPACK_TIMEOUT 20    // How often to check for backpack commands
 
@@ -17,7 +16,6 @@ extern bool headTrackingEnabled;
 bool TxBackpackWiFiReadyToSend = false;
 bool VRxBackpackWiFiReadyToSend = false;
 bool HTEnableFlagReadyToSend = false;
-bool BackpackTelemReadyToSend = false;
 
 bool lastRecordingState = false;
 
@@ -258,17 +256,11 @@ static void AuxStateToMSPOut()
 #endif // USE_TX_BACKPACK
 }
 
-void sendCRSFTelemetryToBackpack(uint8_t *data)
+void crsfTelemToMSPOut(uint8_t *data)
 {
-    if (config.GetBackpackTlmMode() == BACKPACK_TELEM_MODE_OFF)
+    if (config.GetBackpackTlmEnabled() == 0)
     {
         // Backpack telem is off
-        return;
-    }
-
-    if (config.GetLinkMode() == TX_MAVLINK_MODE)
-    {
-        // Tx is in MAVLink mode, don't forward CRSF telemetry
         return;
     }
 
@@ -289,30 +281,6 @@ void sendCRSFTelemetryToBackpack(uint8_t *data)
       packet.addByte(data[i]);
     }
 
-    MSP::sendPacket(&packet, TxBackpack); // send to tx-backpack as MSP
-}
-
-void sendMAVLinkTelemetryToBackpack(uint8_t *data)
-{
-    if (config.GetBackpackTlmMode() == BACKPACK_TELEM_MODE_OFF)
-    {
-        // Backpack telem is off
-        return;
-    }
-
-    uint8_t count = data[1];
-    TxBackpack->write(data + CRSF_FRAME_NOT_COUNTED_BYTES, count);
-}
-
-void sendConfigToBackpack()
-{
-    // Send any config values to the tx-backpack, as one key/value pair per MSP msg
-    mspPacket_t packet;
-    packet.reset();
-    packet.makeCommand();
-    packet.function = MSP_ELRS_BACKPACK_CONFIG;
-    packet.addByte(MSP_ELRS_BACKPACK_CONFIG_TLM_MODE); // Backpack tlm mode
-    packet.addByte(config.GetBackpackTlmMode());
     MSP::sendPacket(&packet, TxBackpack); // send to tx-backpack as MSP
 }
 
@@ -383,12 +351,6 @@ static int timeout()
         BackpackHTFlagToMSPOut(headTrackingEnabled);
     }
 
-    if (BackpackTelemReadyToSend && connectionState < MODE_STATES)
-    {
-        BackpackTelemReadyToSend = false;
-        sendConfigToBackpack();
-    }
-
     return BACKPACK_TIMEOUT;
 }
 
@@ -398,10 +360,9 @@ static int event()
     if (OPT_USE_TX_BACKPACK && GPIO_PIN_BACKPACK_EN != UNDEF_PIN)
     {
         // EN should be HIGH to be active
-        digitalWrite(GPIO_PIN_BACKPACK_EN, (config.GetBackpackDisable() || connectionState == bleJoystick || connectionState == wifiUpdate) ? LOW : HIGH);
+        digitalWrite(GPIO_PIN_BACKPACK_EN, config.GetBackpackDisable() ? LOW : HIGH);
     }
 #endif
-
     return DURATION_IGNORE;
 }
 

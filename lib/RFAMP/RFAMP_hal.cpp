@@ -94,26 +94,10 @@ void RFAMP_hal::init()
 
 void ICACHE_RAM_ATTR RFAMP_hal::TXenable(SX12XX_Radio_Number_t radioNumber)
 {
-#if defined(PLATFORM_ESP32_C3)
+#if defined(PLATFORM_ESP32)
     if (radioNumber == SX12XX_Radio_All)
     {
-        GPIO.out_w1ts.out_w1ts = tx_all_enable_set_bits;
-        GPIO.out_w1tc.out_w1tc = tx_all_enable_clr_bits;
-    }
-    else if (radioNumber == SX12XX_Radio_2)
-    {
-        GPIO.out_w1ts.out_w1ts = tx2_enable_set_bits;
-        GPIO.out_w1tc.out_w1tc = tx2_enable_clr_bits;
-    }
-    else
-    {
-        GPIO.out_w1ts.out_w1ts = tx1_enable_set_bits;
-        GPIO.out_w1tc.out_w1tc = tx1_enable_clr_bits;
-    }
-#elif defined(PLATFORM_ESP32)
-    if (radioNumber == SX12XX_Radio_All)
-    {
-        GPIO.out_w1ts = (uint32_t)tx_all_enable_set_bits;
+        GPIO.out_w1ts = tx_all_enable_set_bits;
         GPIO.out_w1tc = tx_all_enable_clr_bits;
 
         GPIO.out1_w1ts.data = tx_all_enable_set_bits >> 32;
@@ -186,10 +170,7 @@ void ICACHE_RAM_ATTR RFAMP_hal::TXenable(SX12XX_Radio_Number_t radioNumber)
 
 void ICACHE_RAM_ATTR RFAMP_hal::RXenable()
 {
-#if defined(PLATFORM_ESP32_C3)
-    GPIO.out_w1ts.out_w1ts = rx_enable_set_bits;
-    GPIO.out_w1tc.out_w1tc = rx_enable_clr_bits;
-#elif defined(PLATFORM_ESP32)
+#if defined(PLATFORM_ESP32)
     GPIO.out_w1ts = rx_enable_set_bits;
     GPIO.out_w1tc = rx_enable_clr_bits;
 
@@ -229,9 +210,7 @@ void ICACHE_RAM_ATTR RFAMP_hal::RXenable()
 
 void ICACHE_RAM_ATTR RFAMP_hal::TXRXdisable()
 {
-#if defined(PLATFORM_ESP32_C3)
-    GPIO.out_w1tc.out_w1tc = txrx_disable_clr_bits;
-#elif defined(PLATFORM_ESP32)
+#if defined(PLATFORM_ESP32)
     GPIO.out_w1tc = txrx_disable_clr_bits;
     GPIO.out1_w1tc.data = txrx_disable_clr_bits >> 32;
 #else

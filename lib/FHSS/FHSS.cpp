@@ -12,15 +12,23 @@
 #endif
 
 const fhss_config_t domains[] = {
-    {"420~450/40", FREQ_HZ_TO_REG_VAL(420000000), FREQ_HZ_TO_REG_VAL(450000000), 40, 435000000},
-    {"420~450/20", FREQ_HZ_TO_REG_VAL(420000000), FREQ_HZ_TO_REG_VAL(450000000), 20, 435000000},
-    {"370~420/40", FREQ_HZ_TO_REG_VAL(370000000), FREQ_HZ_TO_REG_VAL(420000000), 40, 395000000},
-    {"370~420/20", FREQ_HZ_TO_REG_VAL(370000000), FREQ_HZ_TO_REG_VAL(420000000), 20, 395000000},
+    {"AU915",  FREQ_HZ_TO_REG_VAL(915500000), FREQ_HZ_TO_REG_VAL(926900000), 20},
+    {"FCC915", FREQ_HZ_TO_REG_VAL(903500000), FREQ_HZ_TO_REG_VAL(926900000), 40},
+    {"EU868",  FREQ_HZ_TO_REG_VAL(865275000), FREQ_HZ_TO_REG_VAL(869575000), 13},
+    {"IN866",  FREQ_HZ_TO_REG_VAL(865375000), FREQ_HZ_TO_REG_VAL(866950000), 4},
+    {"AU433",  FREQ_HZ_TO_REG_VAL(433420000), FREQ_HZ_TO_REG_VAL(434420000), 3},
+    {"EU433",  FREQ_HZ_TO_REG_VAL(433100000), FREQ_HZ_TO_REG_VAL(434450000), 3},
+    {"US433",  FREQ_HZ_TO_REG_VAL(433250000), FREQ_HZ_TO_REG_VAL(438000000), 8},
+    {"US433W",  FREQ_HZ_TO_REG_VAL(423500000), FREQ_HZ_TO_REG_VAL(438000000), 20},
+    {"P435_40", FREQ_HZ_TO_REG_VAL(420000000), FREQ_HZ_TO_REG_VAL(450000000), 40},
+    {"P435_20", FREQ_HZ_TO_REG_VAL(420000000), FREQ_HZ_TO_REG_VAL(450000000), 20},
+    {"P395_40", FREQ_HZ_TO_REG_VAL(370000000), FREQ_HZ_TO_REG_VAL(420000000), 40},
+    {"P395_20", FREQ_HZ_TO_REG_VAL(370000000), FREQ_HZ_TO_REG_VAL(420000000), 20},
 };
 
 #if defined(RADIO_LR1121)
 const fhss_config_t domainsDualBand[] = {
-    {"ISM2G4", FREQ_HZ_TO_REG_VAL(2400400000), FREQ_HZ_TO_REG_VAL(2479400000), 80, 2440000000}
+    {"ISM2G4", FREQ_HZ_TO_REG_VAL(2400400000), FREQ_HZ_TO_REG_VAL(2479400000), 80}
 };
 #endif
 
@@ -28,13 +36,13 @@ const fhss_config_t domainsDualBand[] = {
 #include "SX1280Driver.h"
 
 const fhss_config_t domains[] = {
-    {
+    {    
     #if defined(Regulatory_Domain_EU_CE_2400)
         "CE_LBT",
     #elif defined(Regulatory_Domain_ISM_2400)
         "ISM2G4",
     #endif
-    FREQ_HZ_TO_REG_VAL(2400400000), FREQ_HZ_TO_REG_VAL(2479400000), 80, 2440000000}
+    FREQ_HZ_TO_REG_VAL(2400400000), FREQ_HZ_TO_REG_VAL(2479400000), 80}
 };
 #endif
 
@@ -71,7 +79,7 @@ uint16_t secondaryBandCount;
 void FHSSrandomiseFHSSsequence(const uint32_t seed)
 {
     FHSSconfig = &domains[firmwareOptions.domain];
-    sync_channel = FHSSconfig->freq_count / 2;
+    sync_channel = (FHSSconfig->freq_count / 2) + 1;
     freq_spread = (FHSSconfig->freq_stop - FHSSconfig->freq_start) * FREQ_SPREAD_SCALE / (FHSSconfig->freq_count - 1);
     primaryBandCount = (FHSS_SEQUENCE_LEN / FHSSconfig->freq_count) * FHSSconfig->freq_count;
 
@@ -83,7 +91,7 @@ void FHSSrandomiseFHSSsequence(const uint32_t seed)
 
 #if defined(RADIO_LR1121)
     FHSSconfigDualBand = &domainsDualBand[0];
-    sync_channel_DualBand = FHSSconfigDualBand->freq_count / 2;
+    sync_channel_DualBand = (FHSSconfigDualBand->freq_count / 2) + 1;
     freq_spread_DualBand = (FHSSconfigDualBand->freq_stop - FHSSconfigDualBand->freq_start) * FREQ_SPREAD_SCALE / (FHSSconfigDualBand->freq_count - 1);
     secondaryBandCount = (FHSS_SEQUENCE_LEN / FHSSconfigDualBand->freq_count) * FHSSconfigDualBand->freq_count;
 

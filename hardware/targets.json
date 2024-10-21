@@ -5,7 +5,7 @@
             "subg_plan": {
                 "product_name": "B SubGHz TX 2W",
                 "lua_name": "B SubG TX 2W",
-                "layout_file": "B SUB-G TX 2W.json",
+                "layout_file": "B SubGHz 2W.json",
                 "upload_methods": [
                     "uart",
                     "wifi"

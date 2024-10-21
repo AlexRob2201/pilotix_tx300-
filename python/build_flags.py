@@ -1,4 +1,5 @@
 Import("env")
+from genericpath import exists
 import os
 from random import randint
 import sys
@@ -6,6 +7,7 @@ import hashlib
 import fnmatch
 import time
 import re
+import melodyparser
 import elrs_helpers
 
 build_flags = env.get('BUILD_FLAGS', [])
@@ -69,11 +71,15 @@ def process_json_flag(define):
 def process_build_flag(define):
     if define.startswith("-D") or define.startswith("!-D"):
         if "MY_BINDING_PHRASE" in define:
+            build_flags.append(define)
             bindingPhraseHash = hashlib.md5(define.encode()).digest()
             UIDbytes = ",".join(list(map(str, bindingPhraseHash))[0:6])
             define = "-DMY_UID=" + UIDbytes
             sys.stdout.write("\u001b[32mUID bytes: " + UIDbytes + "\n")
             sys.stdout.flush()
+        if "MY_STARTUP_MELODY=" in define:
+            parsedMelody = melodyparser.parse(define.split('"')[1::2][0])
+            define = "-DMY_STARTUP_MELODY_ARR=\"" + parsedMelody + "\""
         if "HOME_WIFI_SSID=" in define:
             parts = re.search(r"(.*)=\w*\"(.*)\"$", define)
             if parts and parts.group(2):
@@ -151,14 +157,30 @@ if '-DRADIO_SX127X=1' in build_flags or '-DRADIO_LR1121=1' in build_flags:
     if not fnmatch.filter(build_flags, '*-DRegulatory_Domain*'):
         print_error('Please define a Regulatory_Domain in user_defines.txt')
 
-    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_P435_40'):
+    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_AU_915'):
         json_flags['domain'] = 0
-    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_P435_20'):
+    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_FCC_915'):
         json_flags['domain'] = 1
-    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_P390_40'):
+    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_EU_868'):
         json_flags['domain'] = 2
-    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_P390_20'):
+    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_IN_866'):
         json_flags['domain'] = 3
+    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_AU_433'):
+        json_flags['domain'] = 4
+    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_EU_433'):
+        json_flags['domain'] = 5
+    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_US_433'):
+        json_flags['domain'] = 6
+    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_US_433_WIDE'):
+        json_flags['domain'] = 7
+    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_P435_20'):
+        json_flags['domain'] = 8
+    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_P435_40'):
+        json_flags['domain'] = 9
+    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_P395_20'):
+        json_flags['domain'] = 10
+    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_P395_40'):
+        json_flags['domain'] = 11
 else:
     json_flags['domain'] = 0
 
@@ -173,6 +195,8 @@ sys.stdout.write("\nbuild flags: %s\n\n" % build_flags)
 
 if fnmatch.filter(build_flags, '*PLATFORM_ESP32*'):
     sys.stdout.write("\u001b[32mBuilding for ESP32 Platform\n")
+elif fnmatch.filter(build_flags, '*PLATFORM_STM32*'):
+    sys.stdout.write("\u001b[32mBuilding for STM32 Platform\n")
 elif fnmatch.filter(build_flags, '*PLATFORM_ESP8266*'):
     sys.stdout.write("\u001b[32mBuilding for ESP8266/ESP8285 Platform\n")
     if fnmatch.filter(build_flags, '-DAUTO_WIFI_ON_INTERVAL*'):
@@ -182,3 +206,13 @@ elif fnmatch.filter(build_flags, '*PLATFORM_ESP8266*'):
 
 sys.stdout.flush()
 time.sleep(.5)
+
+# Set upload_protovol = 'custom' for STM32 MCUs
+#  otherwise firmware.bin is not generated
+stm = env.get('PIOPLATFORM', '') in ['ststm32']
+if stm:
+    env['UPLOAD_PROTOCOL'] = 'custom'
+    # -DFLASH_DISCRIM=xxxx can't be passed on the command line or it will every file to
+    # always be rebuilt, so put it in a header that options.cpp can include
+    print(f"#define FLASH_DISCRIM {json_flags['flash-discriminator']}",
+          file=open("include/flashdiscrim.h", "w"))

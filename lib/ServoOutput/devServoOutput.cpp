@@ -159,7 +159,11 @@ static void initialize()
         int8_t pin = GPIO_PIN_PWM_OUTPUTS[ch];
 #if (defined(DEBUG_LOG) || defined(DEBUG_RCVR_LINKSTATS)) && (defined(PLATFORM_ESP8266) || defined(PLATFORM_ESP32))
         // Disconnect the debug UART pins if DEBUG_LOG
-        if (pin == U0RXD_GPIO_NUM || pin == U0TXD_GPIO_NUM)
+#if defined(PLATFORM_ESP32_S3)
+        if (pin == 43 || pin == 44)
+#else
+        if (pin == 1 || pin == 3)
+#endif
         {
             pin = UNDEF_PIN;
         }

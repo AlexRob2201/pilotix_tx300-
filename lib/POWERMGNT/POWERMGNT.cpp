@@ -54,6 +54,7 @@ PowerLevels_e crsfpowerToPower(uint8_t crsfpower)
  * A new target now just needs to define
  * - `MinPower`, the minimum power level supported
  * - `MaxPower`, the absolute maximum power level supported
+ * - optionally `HighPower`, if defined then module uses this as max unless `UNLOCK_HIGHER_POWER` is defined by the user
  * - `POWER_OUTPUT_VALUES` array of values to be used to set appropriate power level from `MinPower` to `MaxPower`
  *
  * A target can also define one of the following to configure how the output power is set, the value given to the function
@@ -291,7 +292,7 @@ void POWERMGNT::setPower(PowerLevels_e Power)
         {
             Radio.SetOutputPower(POWER_OUTPUT_VALUES2[Power - MinPower]);
         }
-        #if defined(PLATFORM_ESP32_S3) || defined(PLATFORM_ESP32_C3)
+        #if defined(PLATFORM_ESP32_S3)
         ERRLN("ESP32-S3 does not have a DAC");
         #else
         dacWrite(GPIO_PIN_RFamp_APC2, powerValues[Power - MinPower]);

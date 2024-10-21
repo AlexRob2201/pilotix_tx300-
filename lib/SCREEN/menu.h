@@ -56,8 +56,6 @@ enum fsm_state_s {
     STATE_VALUE_INC,
     STATE_VALUE_DEC,
     STATE_VALUE_SAVE,
-
-    STATE_LINKSTATS
 };
 
 

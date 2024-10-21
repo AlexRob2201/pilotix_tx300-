@@ -49,21 +49,18 @@ void ICACHE_RAM_ATTR hwTimer::resume()
 {
     if (timer && !running)
     {
-        // The timer must be restarted so that the new timerAlarmWrite() period is set.
-        timerRestart(timer);
+        running = true;
+
 #if defined(TARGET_TX)
         timerAlarmWrite(timer, HWtimerInterval, true);
 #else
-        // We want the timer to fire tock() ASAP after enabling
+        // The STM32 timer fires tock() ASAP after enabling, so mimic that behavior
         // tock() should always be the first event to maintain consistency
         isTick = false;
         // When using EDGE triggered timer, enabling the timer causes an edge so the interrupt
-        // is fired immediately
-        // Unlike the 8266 timer, the ESP32 timer can be started without delay.
-        // It does not interrupt the currently running IsrCallback(), but triggers immediately once it has completed.
-        timerAlarmWrite(timer, 0 * HWTIMER_TICKS_PER_US, true);
+        // is fired immediately, so this emulates the STM32 behaviour
+        timerAlarmWrite(timer, HWtimerInterval >> 1, true);
 #endif
-        running = true;
         timerAlarmEnable(timer);
         DBGLN("hwTimer resume");
     }

@@ -8,88 +8,39 @@
 #include "CRSF.h"
 #include "config.h"
 
-#define NO_SERIALIO_INTERVAL 1000
-
 extern SerialIO *serialIO;
-#if defined(PLATFORM_ESP32)
-extern SerialIO *serial1IO;
-#endif
 
-enum teamraceOutputInhibitState_e {
+static volatile bool frameAvailable = false;
+static volatile bool frameMissed = false;
+static enum teamraceOutputInhibitState_e {
     troiPass = 0,               // Allow all packets through, normal operation
     troiDisableAwaitConfirm,    // Have received one packet with another model selected, awaiting confirm to Inhibit
     troiInhibit,                // Inhibit all output
     troiEnableAwaitConfirm,     // Have received one packet with this model selected, awaiting confirm to Pass
-};
-
-typedef struct devserial_ctx_s {
-  SerialIO **io;
-  bool frameAvailable;          
-  bool frameMissed ;
-  connectionState_e lastConnectionState;
-  uint8_t lastTeamracePosition;
-  teamraceOutputInhibitState_e teamraceOutputInhibitState;
-} devserial_ctx_t;
-
-static devserial_ctx_t serial0;
-#if defined(PLATFORM_ESP32)
-static devserial_ctx_t serial1;
-#endif
+} teamraceOutputInhibitState;
 
 void ICACHE_RAM_ATTR crsfRCFrameAvailable()
 {
-    serial0.frameAvailable = true;
-#if defined(PLATFORM_ESP32)
-    serial1.frameAvailable = true;
-#endif
+    frameAvailable = true;
 }
 
 void ICACHE_RAM_ATTR crsfRCFrameMissed()
 {
-    serial0.frameMissed = true;
-#if defined(PLATFORM_ESP32)
-    serial1.frameMissed = true;
-#endif
+    frameMissed = true;
 }
 
 static int start()
 {
-    serial0.io = &serialIO;
-    serial0.lastConnectionState = disconnected;
-#if defined(PLATFORM_ESP32)
-    serial1.io = &serial1IO;
-    serial1.lastConnectionState = disconnected;
-#endif
-
     return DURATION_IMMEDIATELY;
 }
 
-static int event(devserial_ctx_t *ctx)
+static int event()
 {
-    if ((*(ctx->io)) != nullptr)
-    {
-        if (ctx->lastConnectionState != connectionState)
-        {
-            (*(ctx->io))->setFailsafe(connectionState == disconnected);
-        }
-    }
-
-    ctx->lastConnectionState = connectionState;
-
+    static connectionState_e lastConnectionState = disconnected;
+    serialIO->setFailsafe(connectionState == disconnected && lastConnectionState == connected);
+    lastConnectionState = connectionState;
     return DURATION_IGNORE;
 }
-
-static int event0()
-{
-    return event(&serial0);
-}
-
-#if defined(PLATFORM_ESP32)
-static int event1()
-{
-    return event(&serial1);
-}
-#endif
 
 /***
  * @brief: Convert the current TeamraceChannel value to the appropriate config value for comparison
@@ -123,12 +74,11 @@ static uint8_t teamraceChannelToConfigValue()
  * @brief: Determine if FrameAvailable and it should be sent to FC
  * @return: TRUE if a new frame is available and should be processed
 */
-static bool confirmFrameAvailable(devserial_ctx_t *ctx)
+static bool confirmFrameAvailable()
 {
-    if (!ctx->frameAvailable)
+    if (!frameAvailable)
         return false;
-
-    ctx->frameAvailable = false;
+    frameAvailable = false;
 
     // ModelMatch failure always prevents passing the frame on
     if (!connectionHasModelMatch)
@@ -137,72 +87,66 @@ static bool confirmFrameAvailable(devserial_ctx_t *ctx)
     constexpr uint8_t CONFIG_TEAMRACE_POS_OFF = 0;
     if (config.GetTeamracePosition() == CONFIG_TEAMRACE_POS_OFF)
     {
-        ctx->teamraceOutputInhibitState = troiPass;
+        teamraceOutputInhibitState = troiPass;
         return true;
     }
 
     // Pass the packet on if in troiPass (of course) or
     // troiDisableAwaitConfirm (keep sending channels until the teamracepos stabilizes)
-    bool retVal = ctx->teamraceOutputInhibitState < troiInhibit;
+    bool retVal = teamraceOutputInhibitState < troiInhibit;
 
+    static uint8_t lastTeamracePosition;
     uint8_t newTeamracePosition = teamraceChannelToConfigValue();
-
-    switch (ctx->teamraceOutputInhibitState)
+    switch (teamraceOutputInhibitState)
     {
         case troiPass:
             // User appears to be switching away from this model, wait for confirm
             if (newTeamracePosition != config.GetTeamracePosition())
-                ctx->teamraceOutputInhibitState = troiDisableAwaitConfirm;
+                teamraceOutputInhibitState = troiDisableAwaitConfirm;
             break;
 
         case troiDisableAwaitConfirm:
             // Must receive the same new position twice in a row for state to change
-            if (ctx->lastTeamracePosition == newTeamracePosition)
+            if (lastTeamracePosition == newTeamracePosition)
             {
                 if (newTeamracePosition != config.GetTeamracePosition())
-                    ctx->teamraceOutputInhibitState = troiInhibit; // disable output
+                    teamraceOutputInhibitState = troiInhibit; // disable output
                 else
-                    ctx->teamraceOutputInhibitState = troiPass; // return to normal
+                    teamraceOutputInhibitState = troiPass; // return to normal
             }
             break;
 
         case troiInhibit:
             // User appears to be switching to this model, wait for confirm
             if (newTeamracePosition == config.GetTeamracePosition())
-                ctx->teamraceOutputInhibitState = troiEnableAwaitConfirm;
+                teamraceOutputInhibitState = troiEnableAwaitConfirm;
             break;
 
         case troiEnableAwaitConfirm:
             // Must receive the same new position twice in a row for state to change
-            if (ctx->lastTeamracePosition == newTeamracePosition)
+            if (lastTeamracePosition == newTeamracePosition)
             {
                 if (newTeamracePosition == config.GetTeamracePosition())
-                    ctx->teamraceOutputInhibitState = troiPass; // return to normal
+                    teamraceOutputInhibitState = troiPass; // return to normal
                 else
-                    ctx->teamraceOutputInhibitState = troiInhibit; // back to disabled
+                    teamraceOutputInhibitState = troiInhibit; // back to disabled
             }
             break;
     }
 
-    ctx->lastTeamracePosition = newTeamracePosition;
+    lastTeamracePosition = newTeamracePosition;
     // troiPass or troiDisablePending indicate the model is selected still,
     // however returning true if troiDisablePending means this RX could send
     // telemetry and we do not want that
-    teamraceHasModelMatch = ctx->teamraceOutputInhibitState == troiPass;
+    teamraceHasModelMatch = teamraceOutputInhibitState == troiPass;
     return retVal;
 }
 
-static int timeout(devserial_ctx_t *ctx)
+static int timeout()
 {
-    if (*(ctx->io) == nullptr)
+    if (connectionState == serialUpdate)
     {
-        return NO_SERIALIO_INTERVAL;
-    }
-
-    // stop callbacks when serial driver wants immediate sends or when doing serial update
-    if ((*(ctx->io))->sendImmediateRC() || connectionState == serialUpdate)
-    {
-        return DURATION_NEVER;
+        return DURATION_NEVER;  // stop callbacks when doing serial update
     }
 
     /***
@@ -220,73 +164,25 @@ static int timeout(devserial_ctx_t *ctx)
     */
 
     noInterrupts();
-    bool missed = ctx->frameMissed;
-    ctx->frameMissed = false;
+    bool missed = frameMissed;
+    frameMissed = false;
     interrupts();
 
     // Verify there is new ChannelData and they should be sent on
-    bool sendChannels = confirmFrameAvailable(ctx);
+    bool sendChannels = confirmFrameAvailable();
+    uint32_t duration = serialIO->sendRCFrame(sendChannels, missed, ChannelData);
 
-    return (*(ctx->io))->sendRCFrame(sendChannels, missed, ChannelData);
+    // still get telemetry and send link stats if theres no model match
+    serialIO->processSerialInput();
+    serialIO->sendQueuedData(serialIO->getMaxSerialWriteSize());
+    return duration;
 }
 
-void sendImmediateRC()
-{
-    if (*(serial0.io) != nullptr && (*(serial0.io))->sendImmediateRC() && connectionState != serialUpdate)
-    {
-        bool missed = serial0.frameMissed;
-        serial0.frameMissed = false;
-
-        // Verify there is new ChannelData and they should be sent on
-        bool sendChannels = confirmFrameAvailable(&serial0);
-
-        (*(serial0.io))->sendRCFrame(sendChannels, missed, ChannelData);
-    }
-}
-
-void handleSerialIO()
-{
-    // still get telemetry and send link stats if there's no model match
-    if (*(serial0.io) != nullptr)
-    {
-        (*(serial0.io))->processSerialInput();
-        (*(serial0.io))->sendQueuedData((*(serial0.io))->getMaxSerialWriteSize());
-    }
-#if defined(PLATFORM_ESP32)
-    if (*(serial1.io) != nullptr)
-    {
-        (*(serial1.io))->processSerialInput();
-        (*(serial1.io))->sendQueuedData((*(serial1.io))->getMaxSerialWriteSize());
-    }
-#endif
-}
-
-static int timeout0()
-{
-  return timeout(&serial0);
-}
-
-#if defined(PLATFORM_ESP32)
-static int timeout1()
-{
-  return timeout(&serial1);
-}
-#endif
-
-device_t Serial0_device = {
+device_t Serial_device = {
     .initialize = nullptr,
     .start = start,
-    .event = event0,
-    .timeout = timeout0
+    .event = event,
+    .timeout = timeout
 };
-
-#if defined(PLATFORM_ESP32)
-device_t Serial1_device = {
-    .initialize = nullptr,
-    .start = start,
-    .event = event1,
-    .timeout = timeout1
-};
-#endif
 
 #endif

@@ -17,11 +17,6 @@
 #error Invalid radio configuration!
 #endif
 
-#if defined(PLATFORM_ESP32)
-#include <soc/soc_caps.h>
-#define MULTICORE (SOC_CPU_CORES_NUM > 1)
-#endif
-
 ///////////////////////////////////////
 
 extern bool connectionHasModelMatch;
@@ -35,7 +30,7 @@ static bool lastModelMatch[2] = {false, false};
 
 static unsigned long deviceTimeout[16] = {0};
 
-#if MULTICORE
+#if defined(PLATFORM_ESP32)
 static TaskHandle_t xDeviceTask = NULL;
 static SemaphoreHandle_t taskSemaphore;
 static SemaphoreHandle_t completeSemaphore;
@@ -50,7 +45,7 @@ void devicesRegister(device_affinity_t *devices, uint8_t count)
     uiDevices = devices;
     deviceCount = count;
 
-    #if MULTICORE
+    #if defined(PLATFORM_ESP32)
         taskSemaphore = xSemaphoreCreateBinary();
         completeSemaphore = xSemaphoreCreateBinary();
         disableCore0WDT();
@@ -69,7 +64,7 @@ void devicesInit()
             }
         }
     }
-    #if MULTICORE
+    #if defined(PLATFORM_ESP32)
     if (core == 1)
     {
         xSemaphoreGive(taskSemaphore);
@@ -94,7 +89,7 @@ void devicesStart()
             }
         }
     }
-    #if MULTICORE
+    #if defined(PLATFORM_ESP32)
     if (core == 1)
     {
         xSemaphoreGive(taskSemaphore);
@@ -105,7 +100,7 @@ void devicesStart()
 
 void devicesStop()
 {
-    #if MULTICORE
+    #if defined(PLATFORM_ESP32)
     vTaskDelete(xDeviceTask);
     #endif
 }
@@ -114,7 +109,7 @@ void devicesTriggerEvent()
 {
     eventFired[0] = true;
     eventFired[1] = true;
-    #if MULTICORE
+    #if defined(PLATFORM_ESP32)
     // Release teh semaphore so the tasks on core 0 run now
     xSemaphoreGive(taskSemaphore);
     #endif
@@ -170,7 +165,7 @@ void devicesUpdate(unsigned long now)
     _devicesUpdate(now);
 }
 
-#if MULTICORE
+#if defined(PLATFORM_ESP32)
 static void deviceTask(void *pvArgs)
 {
     xSemaphoreTake(taskSemaphore, portMAX_DELAY);

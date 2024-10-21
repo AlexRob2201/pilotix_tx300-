@@ -13,8 +13,20 @@
 #define WORD_ALIGNED_ATTR __attribute__((aligned(4)))
 #define WORD_PADDED(size) (((size)+3) & ~3)
 
+#ifdef PLATFORM_STM32
+/* ICACHE_RAM_ATTR1 is always linked into RAM */
+#define ICACHE_RAM_ATTR1  __section(".ram_code")
+/* ICACHE_RAM_ATTR2 is linked into RAM only if enough space */
+#if RAM_CODE_LIMITED
+#define ICACHE_RAM_ATTR2
+#else
+#define ICACHE_RAM_ATTR2 __section(".ram_code")
+#endif
+#define ICACHE_RAM_ATTR //nothing//
+#else
 #undef ICACHE_RAM_ATTR //fix to allow both esp32 and esp8266 to use ICACHE_RAM_ATTR for mapping to IRAM
 #define ICACHE_RAM_ATTR IRAM_ATTR
+#endif
 
 #if defined(TARGET_NATIVE)
 #define IRAM_ATTR
@@ -255,15 +267,28 @@ extern bool pwmSerialDefined;
 #if defined(RADIO_SX128X)
 #define Regulatory_Domain_ISM_2400 1
 // ISM 2400 band is in use => undefine other requlatory domain defines
+#undef Regulatory_Domain_AU_915
+#undef Regulatory_Domain_EU_868
+#undef Regulatory_Domain_IN_866
+#undef Regulatory_Domain_FCC_915
+#undef Regulatory_Domain_AU_433
+#undef Regulatory_Domain_EU_433
+#undef Regulatory_Domain_US_433
+#undef Regulatory_Domain_US_433_WIDE
 #undef Regulatory_Domain_P435_40
 #undef Regulatory_Domain_P435_20
-#undef Regulatory_Domain_P390_40
-#undef Regulatory_Domain_P390_20
+#undef Regulatory_Domain_P395_40
+#undef Regulatory_Domain_P395_20
+
 
 
 #elif defined(RADIO_SX127X) || defined(RADIO_LR1121)
-#if !(defined(Regulatory_Domain_P435_40) || defined(Regulatory_Domain_P435_20) || \
-        defined(Regulatory_Domain_P390_40) || defined(Regulatory_Domain_P390_20) || \
+#if !(defined(Regulatory_Domain_AU_915) || defined(Regulatory_Domain_FCC_915) || \
+        defined(Regulatory_Domain_EU_868) || defined(Regulatory_Domain_IN_866) || \
+        defined(Regulatory_Domain_AU_433) || defined(Regulatory_Domain_EU_433) || \
+        defined(Regulatory_Domain_US_433) || defined(Regulatory_Domain_US_433_WIDE) || \
+        defined(Regulatory_Domain_P435_40) || defined(Regulatory_Domain_P435_20) || \
+        defined(Regulatory_Domain_P395_40) || defined(Regulatory_Domain_P395_20) || \
         defined(UNIT_TEST))
 #error "Regulatory_Domain is not defined for 900MHz device. Check user_defines.txt!"
 #endif
@@ -272,9 +297,6 @@ extern bool pwmSerialDefined;
 #endif
 
 #if defined(TARGET_UNIFIED_TX) || defined(TARGET_UNIFIED_RX)
-#if defined(PLATFORM_ESP32)
-#include <soc/uart_pins.h>
-#endif
 #if !defined(U0RXD_GPIO_NUM)
 #define U0RXD_GPIO_NUM (3)
 #endif
